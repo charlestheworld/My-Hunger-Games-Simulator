@@ -156,10 +156,13 @@ function startGame(){
  nextDay();
 }
 
+
 function nextDay(){
  if(finished)return;
+
  day++;
  document.getElementById('day').textContent='DAY '+day;
+
  const events=[
  (a,b)=>a.name+' forms an unlikely alliance with '+b.name+'.',
  (a,b)=>a.name+' steals supplies from '+b.name+'.',
@@ -171,6 +174,7 @@ function nextDay(){
  (a,b)=>a.name+' makes an unexpected enemy of '+b.name+'.',
  (a,b)=>a.name+' shares food with '+b.name+'.'
  ];
+
  const deaths=[
  (a,b)=>a.name+' is eliminated after a confrontation with '+b.name+'.',
  (a,b)=>a.name+' gets caught in a trap and is eliminated.',
@@ -179,29 +183,50 @@ function nextDay(){
  (a,b)=>a.name+' is eliminated during a fight with '+b.name+'.'
  ];
 
- let generated=0;
+ // SPECIAL FINAL TWO SHOWDOWN
+ if(alive.length===2){
+   const victor=pick(alive);
+   const eliminated=alive.find(t=>t!==victor);
+
+   addEvent(
+     'THE FINAL SHOWDOWN',
+     victor.name+' defeats '+eliminated.name+' in the final battle!'
+   );
+
+   addEvent(
+     'TRIBUTE ELIMINATED',
+     eliminated.name+' has fallen. Only one tribute remains!',
+     'death'
+   );
+
+   alive=[victor];
+   finishGame();
+   return;
+ }
+
  let shuffled=shuffle(alive);
 
  for(let i=0;i<Math.min(3,shuffled.length);i++){
- if(alive.length<=1)break;
- let a=pick(alive);
- let b=pick(alive.filter(t=>t!==a));
+   if(alive.length<=2)break;
 
- if(Math.random()<0.3 && alive.length>2){
- addEvent('TRIBUTE ELIMINATED',pick(deaths)(a,b),'death');
- alive=alive.filter(t=>t!==a);
- }else{
- addEvent('ARENA EVENT',pick(events)(a,b));
+   let a=pick(alive);
+   let b=pick(alive.filter(t=>t!==a));
+
+   if(Math.random()<0.4){
+     addEvent('TRIBUTE ELIMINATED',pick(deaths)(a,b),'death');
+     alive=alive.filter(t=>t!==a);
+   }else{
+     addEvent('ARENA EVENT',pick(events)(a,b));
+   }
  }
- generated++;
- }
+
+ updateRemaining();
 
  if(alive.length===1){
- finishGame();
+   finishGame();
  }else{
- document.getElementById('status').textContent=
- 'Day '+day+' complete. '+alive.length+' tributes remain.';
- updateRemaining();
+   document.getElementById('status').textContent=
+   'Day '+day+' complete. '+alive.length+' tributes remain.';
  }
 }
 
