@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Hunger Games Simulator</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#111;color:#f5eee3;font-family:Georgia,serif}
+header{text-align:center;padding:40px 15px;background:linear-gradient(#49321e,#15110e);border-bottom:2px solid #d4ad65}
+h1{color:#e4bd72;letter-spacing:5px;font-size:clamp(28px,6vw,48px)}
+header p{letter-spacing:3px;color:#d4c2a5}
+main{max-width:1000px;margin:auto;padding:18px}
+.panel{background:#211d19;border:1px solid #705b3d;padding:20px;margin:20px 0;border-radius:8px}
+h2{color:#e4bd72}
+input,button{padding:11px;margin:5px;border-radius:4px;font:inherit}
+input{background:#111;color:white;border:1px solid #806b4d;max-width:100%}
+button{background:#d4ad65;color:#17120c;border:0;font-weight:bold;cursor:pointer}
+button:hover{background:#f0d18e}
+button:disabled{opacity:.4;cursor:not-allowed}
+#roster,#remaining{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px}
+.tribute{background:#151310;padding:10px;text-align:center;border:1px solid #705b3d;border-radius:5px}
+.tribute img{width:100%;aspect-ratio:1;object-fit:cover;background:#39332a}
+.tribute strong{display:block;margin:8px 0}
+.tribute small{color:#c3ad8d}
+.event{padding:15px;margin:12px 0;background:#151310;border-left:4px solid #d4ad65;line-height:1.5}
+.death{border-color:#b44343}
+#winner{text-align:center;color:#e4bd72;font-size:28px;padding:25px}
+#arena{display:none}
+#status{color:#c6b99f}
+footer{text-align:center;padding:25px;color:#93836b}
+</style>
+</head>
+<body>
+<header>
+<h1>THE HUNGER GAMES</h1>
+<p>MAY THE ODDS BE EVER IN YOUR FAVOUR</p>
+</header>
+
+<main>
+<section class="panel">
+<h2>01 — ENTER THE TRIBUTES</h2>
+<p>Add your friends and upload their photos.</p>
+<input id="name" placeholder="Tribute name">
+<input id="photo" type="file" accept="image/*">
+<button onclick="addTribute()">ADD TRIBUTE</button>
+<p id="count">0 tributes entered</p>
+<div id="roster"></div>
+<button onclick="clearRoster()">CLEAR ALL</button>
+</section>
+
+<section class="panel">
+<h2>02 — THE ARENA</h2>
+<p>Gather your tributes. The games are about to begin.</p>
+<button id="start" onclick="startGame()">START THE GAMES</button>
+<button id="next" onclick="nextDay()" disabled>NEXT DAY</button>
+<button onclick="resetGame()">RESET GAME</button>
+<p id="status">Waiting for tributes...</p>
+</section>
+
+<section id="arena" class="panel">
+<h2 id="day">THE ARENA</h2>
+<div id="events"></div>
+<div id="winner"></div>
+<h2>REMAINING TRIBUTES</h2>
+<div id="remaining"></div>
+</section>
+</main>
+
+<footer>THE CAPITOL IS WATCHING</footer>
+
+<script>
+let tributes=[];
+let alive=[];
+let day=0;
+let finished=false;
+
+function addTribute(){
+ const name=document.getElementById('name').value.trim();
+ const file=document.getElementById('photo').files[0];
+
+ if(!name)return alert('Please enter a name!');
+ if(!file)return alert('Please choose a photo!');
+ if(tributes.some(t=>t.name.toLowerCase()===name.toLowerCase()))
+ return alert('That name already exists!');
+
+ const reader=new FileReader();
+ reader.onload=e=>{
+ tributes.push({name,photo:e.target.result});
+ document.getElementById('name').value='';
+ document.getElementById('photo').value='';
+ renderRoster();
+ };
+ reader.readAsDataURL(file);
+}
+
+function renderRoster(){
+ document.getElementById('count').textContent=tributes.length+' tributes entered';
+ const roster=document.getElementById('roster');
+ roster.innerHTML='';
+ tributes.forEach((t,i)=>{
+ const card=document.createElement('div');
+ card.className='tribute';
+ const img=document.createElement('img');
+ img.src=t.photo;
+ const name=document.createElement('strong');
+ name.textContent=t.name;
+ const district=document.createElement('small');
+ district.textContent='Tribute '+(i+1);
+ const remove=document.createElement('button');
+ remove.textContent='REMOVE';
+ remove.onclick=()=>{tributes.splice(i,1);renderRoster()};
+ card.append(img,name,district,remove);
+ roster.appendChild(card);
+ });
+}
+
+function clearRoster(){
+ if(alive.length && !finished)return alert('Reset the game first!');
+ tributes=[];
+ renderRoster();
+}
+
+function pick(arr){
+ return arr[Math.floor(Math.random()*arr.length)];
+}
+
+function shuffle(arr){
+ return [...arr].sort(()=>Math.random()-.5);
+}
+
+function addEvent(title,description,type=''){
+ const card=document.createElement('div');
+ card.className='event '+type;
+ const heading=document.createElement('strong');
+ heading.textContent=title;
+ const p=document.createElement('p');
+ p.textContent=description;
+ card.append(heading,p);
+ document.getElementById('events').prepend(card);
+}
+
+function startGame(){
+ if(tributes.length<2)return alert('Add at least two tributes!');
+ alive=[...tributes];
+ day=0;
+ finished=false;
+ document.getElementById('events').innerHTML='';
+ document.getElementById('winner').textContent='';
+ document.getElementById('arena').style.display='block';
+ document.getElementById('start').disabled=true;
+ document.getElementById('next').disabled=false;
+ document.getElementById('status').textContent='The games have begun!';
+ addEvent('THE BLOOD BATH','The gong sounds. The tributes rush into the arena. Let the games begin!');
+ updateRemaining();
+ nextDay();
+}
+
+function nextDay(){
+ if(finished)return;
+ day++;
+ document.getElementById('day').textContent='DAY '+day;
+ const events=[
+ (a,b)=>a.name+' forms an unlikely alliance with '+b.name+'.',
+ (a,b)=>a.name+' steals supplies from '+b.name+'.',
+ (a,b)=>a.name+' and '+b.name+' have a dramatic argument.',
+ (a,b)=>a.name+' discovers a hidden stash of supplies.',
+ (a,b)=>a.name+' betrays '+b.name+' and goes solo.',
+ (a,b)=>a.name+' saves '+b.name+' from danger.',
+ (a,b)=>a.name+' spends the day hiding in the forest.',
+ (a,b)=>a.name+' makes an unexpected enemy of '+b.name+'.',
+ (a,b)=>a.name+' shares food with '+b.name+'.'
+ ];
+ const deaths=[
+ (a,b)=>a.name+' is eliminated after a confrontation with '+b.name+'.',
+ (a,b)=>a.name+' gets caught in a trap and is eliminated.',
+ (a,b)=>a.name+' is eliminated in a surprise arena attack.',
+ (a,b)=>a.name+' makes a fatal mistake while searching for supplies.',
+ (a,b)=>a.name+' is eliminated during a fight with '+b.name+'.'
+ ];
+
+ let generated=0;
+ let shuffled=shuffle(alive);
+
+ for(let i=0;i<Math.min(3,shuffled.length);i++){
+ if(alive.length<=1)break;
+ let a=pick(alive);
+ let b=pick(alive.filter(t=>t!==a));
+
+ if(Math.random()<0.3 && alive.length>2){
+ addEvent('TRIBUTE ELIMINATED',pick(deaths)(a,b),'death');
+ alive=alive.filter(t=>t!==a);
+ }else{
+ addEvent('ARENA EVENT',pick(events)(a,b));
+ }
+ generated++;
+ }
+
+ if(alive.length===1){
+ finishGame();
+ }else{
+ document.getElementById('status').textContent=
+ 'Day '+day+' complete. '+alive.length+' tributes remain.';
+ updateRemaining();
+ }
+}
+
+function updateRemaining(){
+ const container=document.getElementById('remaining');
+ container.innerHTML='';
+ alive.forEach(t=>{
+ const card=document.createElement('div');
+ card.className='tribute';
+ const img=document.createElement('img');
+ img.src=t.photo;
+ const name=document.createElement('strong');
+ name.textContent=t.name;
+ card.append(img,name);
+ container.appendChild(card);
+ });
+}
+
+function finishGame(){
+ finished=true;
+ document.getElementById('next').disabled=true;
+ const victor=alive[0];
+ document.getElementById('winner').textContent='🏆 VICTOR: '+victor.name+' 🏆';
+ document.getElementById('status').textContent='The Hunger Games are over!';
+ addEvent('THE VICTOR','Against all odds, '+victor.name+' has won the Hunger Games!','winner');
+ updateRemaining();
+}
+
+function resetGame(){
+ alive=[];
+ day=0;
+ finished=false;
+ document.getElementById('arena').style.display='none';
+ document.getElementById('events').innerHTML='';
+ document.getElementById('winner').textContent='';
+ document.getElementById('start').disabled=false;
+ document.getElementById('next').disabled=true;
+ document.getElementById('status').textContent='Waiting for tributes...';
+}
+</script>
+</body>
+</html>
